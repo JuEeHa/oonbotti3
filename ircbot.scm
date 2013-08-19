@@ -6,6 +6,7 @@
 (define chan   '("#osdev-offtopic"))
 
 (define (connhandler)
+	(define connthread (thread-receive))
 	(define-values (in out) (tcp-connect server port))
 	(define (irc-send s)
 		(display (string-append s "\r\n") out)
@@ -18,17 +19,39 @@
 	(irc-send (string-append "USER " nick " a a :" nick))
 	(map (lambda (x) (irc-send (string-append "JOIN " x))) chan)
 	
-	(define (loop)
+	(define (irc-recv)
 		(define msg (read-line in))
-		(display msg)
-		(display "\n")
+		(thread-send connthread (cons 'inmsg msg) #f)
+		(irc-recv))
+	(define (loop)
+		(define threadmsg (thread-receive))
 		(cond
-			((string=? (car (string-split msg " ")) "PING")
-				(irc-send "PONG :hjdicks")))
+			((eq? (car threadmsg) 'inmsg)
+				(define msg (cdr threadmsg))
+				(cond
+					((string=? (car (string-split msg " ")) "PING")
+						(display "PONG :hjdicks\r\n" out))
+					(else
+						(display msg)
+						(display "\n"))))
+			((eq? (car threadmsg) 'outmsg)
+				(irc-send (cdr threadmsg)))
+			((eq? (car threadmsg) 'quit)
+				(kill-thread irc-recv-thread)))
 		(loop))
+	(define irc-recv-thread (thread irc-recv))
 	(loop)
 	(close-output-port out)
 	(close-input-port in))
 
 (define connthread (thread connhandler))
-(read-line)
+(thread-send connthread connthread #f)
+(define (keyhandler)
+	(define inp (read-line))
+	(cond
+		((string=? (car (string-split inp " ")) "/q")
+			(thread-send connthread '(quit)))
+		(else
+			(thread-send connthread (cons 'outmsg inp))
+			(keyhandler))))
+(keyhandler)
