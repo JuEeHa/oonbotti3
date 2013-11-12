@@ -1,4 +1,5 @@
 #lang scheme
+(include "botcmd.scm")
 
 (define server "irc.freenode.net")
 (define port   6667)
@@ -31,6 +32,8 @@
 				(cond
 					((string=? (car (string-split msg " ")) "PING")
 						(display "PONG :hjdicks\r\n" out))
+					((string=? (car (cdr (string-split msg " "))) "PRIVMSG")
+						(botcmd-handle msg irc-send))
 					(else
 						(display msg)
 						(display "\n"))))
