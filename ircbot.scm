@@ -33,6 +33,8 @@
 					((string=? (car (string-split msg " ")) "PING")
 						(display "PONG :hjdicks\r\n" out))
 					((string=? (car (cdr (string-split msg " "))) "PRIVMSG")
+						(display msg)
+						(display "\n")
 						(botcmd-handle msg irc-send))
 					(else
 						(display msg)
